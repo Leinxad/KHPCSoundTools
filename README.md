@@ -9,10 +9,10 @@ MultiEncoder <InputSCD/Dir> <br/>
 Put the WAVs in the multiencoder folder <br/>
 Rename them starting from 1.wav until you fulfil the number of tracks <br/>
 #### Single Encoder:
-Converts WAV files to Kingdom Hearts PC sound format
+Converts WAV files to Kingdom Hearts PC sound format <br/>
+Compatible only with single-tracked SCDs
 ##### Usage:
 SingleEncoder <InputSCD/Dir> <InputWAV/Dir> <br/>
-Compatible only with single-tracked SCDs
 #### How to Input Loops:
 ##### Full Loop:
 WAV must have LoopStart and LoopEnd tags <br/>

@@ -257,7 +257,7 @@ namespace SCDInfo
             for (int i = 0; i < headers_entries; i++)
             {
                 entry_begin = Read(data, 32, (int)headers_offset + i * 0x04);
-                entry_codec = Read(data, 32, (int)entry_begin);
+                entry_codec = Read(data, 32, (int)entry_begin + 0x0c);
                 if (entry_codec != 0xFFFFFFFF)
                 {
                     break;

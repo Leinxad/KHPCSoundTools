@@ -1,5 +1,4 @@
 # KHPCSoundTools
-Tutorial: https://www.youtube.com/watch?v=BnuQA9fDcog <br/>
 Music Tracks Locations: https://docs.google.com/spreadsheets/d/1JMAhUSeEf3r-njF2-8EBX8mUDVa0xaLs/edit#gid=1851343023
 #### Multi Encoder:
 Converts WAV files to Kingdom Hearts PC sound format <br/>

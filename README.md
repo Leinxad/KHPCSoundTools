@@ -4,14 +4,16 @@ Music Tracks Locations: https://docs.google.com/spreadsheets/d/1JMAhUSeEf3r-njF2
 Converts WAV files to Kingdom Hearts PC sound format <br/>
 Compatible with any SCD
 ##### Usage:
-MultiEncoder <InputSCD/Dir> <br/>
+MultiEncoder <InputSCD/Dir> [Quality] <br/>
 Put the WAVs in the multiencoder folder <br/>
 Rename them starting from 1.wav until you fulfil the number of tracks <br/>
+Quality is an optional parameter that ranges from 0 to 10, by default is 10 <br/>
 #### Single Encoder:
 Converts WAV files to Kingdom Hearts PC sound format <br/>
 Compatible only with single-tracked SCDs
 ##### Usage:
-SingleEncoder <InputSCD/Dir> <InputWAV/Dir> <br/>
+SingleEncoder <InputSCD/Dir> <InputWAV/Dir> [Quality] <br/>
+Quality is an optional parameter that ranges from 0 to 10, by default is 10 <br/>
 #### How to Input Loops:
 ##### Full Loop:
 WAV must have LoopStart and LoopEnd tags <br/>

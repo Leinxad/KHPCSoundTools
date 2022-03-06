@@ -163,7 +163,7 @@ namespace SingleEncoder
                 Console.WriteLine("Usage:");
                 Console.WriteLine("SingleEncoder <InputSCD/Dir> <InputWAV/Dir> <Quality> <FullLoop>");
                 Console.WriteLine("Quality is a range from 0 to 10. Default: 10");
-                Console.WriteLine("FullLoop automatically uses the WAV's entire length as the loop. Enable using -FullLoop or -fl);
+                Console.WriteLine("FullLoop automatically uses the WAV's entire length as the loop. Enable using -FullLoop or -fl");
             }
 
             static void WavtoOGG(string inputWAV, int LoopStart_Sample, int Total_Samples, int Quality)

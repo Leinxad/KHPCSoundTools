@@ -37,16 +37,13 @@ namespace SingleEncoder
                     if (args.Length == 4)
                     {
                         Quality = Convert.ToInt32(args[2]);
-                        FullLoop = Convert.ToBoolean(args[3]);
+                        if (args[3].ToLower() == "-fl" || args[3].ToLower() == "-fullloop")
+                            FullLoop = true;
                     }
                     else if (args.Length == 3)
                     {
-                        string argstring = args[2].ToLower();
-
-                        if (argstring == "-fullloop" || argstring == "-fl")
-                        {
-                            FullLoop = Convert.ToBoolean(argstring);
-                        }
+                        if (args[2].ToLower() == "-fl" || args[2].ToLower() == "-fullloop")
+                            FullLoop = true;
                         else
                             Quality = Convert.ToInt32(args[2]);
                     }

@@ -43,7 +43,7 @@ namespace SingleEncoder
                     {
                         string argstring = args[2].ToLower();
 
-                        if (argstring == "-fullloop" || "-fl")
+                        if (argstring == "-fullloop" || argstring == "-fl")
                         {
                             FullLoop = Convert.ToBoolean(argstring);
                         }

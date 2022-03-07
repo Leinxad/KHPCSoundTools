@@ -30,10 +30,25 @@ namespace SingleEncoder
             {
                 string inputSCD = args[0];
                 int Quality = 10;
+                bool FullLoop = false;
+
                 if (args.Length > 2)
                 {
-                    Quality = Convert.ToInt32(args[2]);
+                    if (args.Length == 4)
+                    {
+                        Quality = Convert.ToInt32(args[2]);
+                        if (args[3].ToLower() == "-fl" || args[3].ToLower() == "-fullloop")
+                            FullLoop = true;
+                    }
+                    else if (args.Length == 3)
+                    {
+                        if (args[2].ToLower() == "-fl" || args[2].ToLower() == "-fullloop")
+                            FullLoop = true;
+                        else
+                            Quality = Convert.ToInt32(args[2]);
+                    }
                 }
+
                 byte[] oldSCD = File.ReadAllBytes(inputSCD);
                 uint tables_offset = Read(oldSCD, 16, 0x0e);
                 uint headers_entries = Read(oldSCD, 16, (int)tables_offset + 0x04);
@@ -48,6 +63,7 @@ namespace SingleEncoder
                 int[] entry_offsets = new int[headers_entries + 1];
                 entry_offsets[0] = file_size;
                 uint codec = getCodec(headers_entries, headers_offset, oldSCD);
+
                 for (int i = 0; i < headers_entries; i++)
                 {
                     entry_begin = Read(oldSCD, 32, (int)headers_offset + i * 0x04);
@@ -69,9 +85,41 @@ namespace SingleEncoder
                         {
                             string wavpath = args[1];
                             byte[] wav = File.ReadAllBytes(wavpath);
-                            //Get Loop Points from Tags
+
+                            //Get Loop Points from Tags 
                             int LoopStart_Sample = searchTag("LoopStart", wav);
                             int Total_Samples = searchTag("LoopEnd", wav);
+                            if (FullLoop) //ignore tags (if they exist or not) and set song to be a full loop instead
+                            {
+                                byte[] fmtPattern = Encoding.ASCII.GetBytes("fmt ");
+                                byte[] datPattern = Encoding.ASCII.GetBytes("data");
+                                int typepos = SearchBytePattern(0, wav, fmtPattern);
+                                int datapos = SearchBytePattern(0, wav, datPattern);
+
+                                if (typepos != -1 && datapos != -1)
+                                {
+                                    short type = BitConverter.ToInt16(wav, typepos + 20);
+                                    int datasize = BitConverter.ToInt32(wav, datapos + 4);
+
+                                    if (datasize < wav.Length)
+                                    {
+                                        LoopStart_Sample = 0; //always 0
+                                        Total_Samples = datasize / type;
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine("Total samples larger than WAV filesize! Wrong WAV format?");
+                                        Console.WriteLine("Continuing without making automatic full loop...");
+
+                                    }
+                                }
+                                else
+                                {
+                                    Console.WriteLine("Could not get data for Full Loop! Wrong WAV format?");
+                                    Console.WriteLine("Continuing  without making automatic full loop...");
+                                }
+                            }
+
                             WavtoOGG(wavpath, LoopStart_Sample, Total_Samples, Quality);
                             string oggPath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), $"{Path.GetFileNameWithoutExtension(wavpath)}.ogg");
                             newEntry = OGGtoSCD(wav, entry, oggPath, LoopStart_Sample, Total_Samples);
@@ -110,7 +158,9 @@ namespace SingleEncoder
             else
             {
                 Console.WriteLine("Usage:");
-                Console.WriteLine("SingleEncoder <InputSCD/Dir> <InputWAV/Dir>");
+                Console.WriteLine("SingleEncoder <InputSCD/Dir> <InputWAV/Dir> <Quality> <FullLoop>");
+                Console.WriteLine("Quality is a range from 0 to 10. Default: 10");
+                Console.WriteLine("FullLoop automatically uses the WAV's entire length as the loop. Enable using -FullLoop or -fl");
             }
 
             static void WavtoOGG(string inputWAV, int LoopStart_Sample, int Total_Samples, int Quality)

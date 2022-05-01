@@ -4,11 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Globalization;
 namespace MultiEncoder
 {
     class Program
     {
         static readonly string TOOLS_PATH = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), "tools");
+        static readonly string INPUT_PATH = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), "input");
 
         static void Main(string[] args)
         {
@@ -50,6 +53,9 @@ namespace MultiEncoder
                 uint codec = getCodec(headers_entries, headers_offset, oldSCD);
                 
                 List<int> wavDurations = new List<int>();
+                string[] wavList = Directory.GetFiles(INPUT_PATH);
+                Array.Sort<string>(wavList, CompareByNumericName);
+                
                 for (int i = 0; i < headers_entries; i++)
                 {
                     entry_begin = Read(oldSCD, 32, (int)headers_offset + i * 0x04);
@@ -67,10 +73,14 @@ namespace MultiEncoder
                     //Check if entry is dummy
                     if (Read(entry, 32, 0x0c) != 0xFFFFFFFF)
                     {
+                        string wavpath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), (i + 1 - dummy_entries) + ".wav");
+                        if (i - dummy_entries < wavList.Length)
+                        {
+                            wavpath = wavList[i - dummy_entries];
+                        }
+                        byte[] wav = File.ReadAllBytes(wavpath);
                         if (codec == 0x6)
                         {
-                            string wavpath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), (i + 1 - dummy_entries) + ".wav");
-                            byte[] wav = File.ReadAllBytes(wavpath);
                             //Get wav duration
                             uint diviser = Read(wav, 32, 0x1c);
                             uint dataSize = Read(wav, 32, 0x28);
@@ -81,13 +91,11 @@ namespace MultiEncoder
                             int LoopStart_Sample = searchTag("LoopStart", wav);
                             int Total_Samples = searchTag("LoopEnd", wav);
                             WavtoOGG(wavpath, LoopStart_Sample, Total_Samples, Quality);
-                            string oggPath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), $"{Path.GetFileNameWithoutExtension(wavpath)}.ogg");
+                            string oggPath = Path.Combine((i - dummy_entries < wavList.Length ? INPUT_PATH : Path.GetDirectoryName(AppContext.BaseDirectory)), $"{Path.GetFileNameWithoutExtension(wavpath)}.ogg");
                             newEntry = OGGtoSCD(wav, entry, oggPath, LoopStart_Sample, Total_Samples);
                         }
                         else
                         {
-                            string wavpath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), (i + 1 - dummy_entries) + ".wav");
-                            byte[] wav = File.ReadAllBytes(wavpath);
                             WavtoMSADPCM(wavpath);
                             string msadpcmPath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory),"adpcm" + $"{Path.GetFileNameWithoutExtension(wavpath)}.wav");
                             newEntry = MSADPCMtoSCD(wav, entry, msadpcmPath);
@@ -470,6 +478,15 @@ namespace MultiEncoder
                 string value = System.Text.Encoding.ASCII.GetString(number);
                 int tagData = Convert.ToInt32(value);
                 return tagData;
+            }
+
+            static int CompareByNumericName(string firstFile, string secondFile)
+            {
+                string file1 = Regex.Match(firstFile, @"\[[0-9]+\]").Value;
+                string file2 = Regex.Match(secondFile, @"\[[0-9]+\]").Value;
+                int firstFileNumericName = int.Parse(Regex.Match(file1, @"\d+").Value, NumberFormatInfo.InvariantInfo);
+                int secondFileNumericName = int.Parse(Regex.Match(file2, @"\d+").Value, NumberFormatInfo.InvariantInfo);
+                return firstFileNumericName.CompareTo(secondFileNumericName);
             }
         }
     }

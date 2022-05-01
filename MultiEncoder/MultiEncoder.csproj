@@ -1,12 +1,8 @@
-<Project xmins="http://schemas.microsoft.com/developer/msbuild/2003">
-	<PropertyGroup>
-		<OutputType>Exe</OutputType>
-		<TargetFramework>net5.0</TargetFramework>
-	</PropertyGroup>
-	<ItemGroup>
-		<Compile Include="program.cs" />
-	</ItemGroup>
-	<Target Name="Build">
-		<Csc Sources="@(Compile)" References="@(Reference)" Resources="@(EmbeddedResources)"/>
-	</Target>
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net5.0</TargetFramework>
+  </PropertyGroup>
+
 </Project>

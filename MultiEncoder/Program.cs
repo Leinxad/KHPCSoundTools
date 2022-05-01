@@ -33,7 +33,7 @@ namespace MultiEncoder
             {
                 args = new string[2];
                 Console.WriteLine("Please drag your SCD file here: ");
-                args[0] = Console.ReadLine();
+                args[0] = Console.ReadLine().Replace("\"", "");
                 Console.WriteLine("Please type the quality level you want [1-9]: ");
                 args[1] = Console.ReadLine();
             }

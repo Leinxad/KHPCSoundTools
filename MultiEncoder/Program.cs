@@ -29,6 +29,14 @@ namespace MultiEncoder
                 Console.WriteLine($"Please put adpcmencode3.exe in the tools folder: {TOOLS_PATH}/adpcmencode3");
                 return;
             }
+            if (args.Length == 0)
+            {
+                args = new string[2];
+                Console.WriteLine("Please drag your SCD file here: ");
+                args[0] = Console.ReadLine();
+                Console.WriteLine("Please type the quality level you want [1-9]: ");
+                args[1] = Console.ReadLine();
+            }
             if (args.Length > 0)
             {
                 string inputSCD = args[0];

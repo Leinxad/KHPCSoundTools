@@ -48,6 +48,8 @@ namespace MultiEncoder
                 int[] entry_offsets = new int[headers_entries + 1];
                 entry_offsets[0] = file_size;
                 uint codec = getCodec(headers_entries, headers_offset, oldSCD);
+                
+                List<int> wavDurations = new List<int>();
                 for (int i = 0; i < headers_entries; i++)
                 {
                     entry_begin = Read(oldSCD, 32, (int)headers_offset + i * 0x04);
@@ -69,6 +71,12 @@ namespace MultiEncoder
                         {
                             string wavpath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), (i + 1 - dummy_entries) + ".wav");
                             byte[] wav = File.ReadAllBytes(wavpath);
+                            //Get wav duration
+                            uint diviser = Read(wav, 32, 0x1c);
+                            uint dataSize = Read(wav, 32, 0x28);
+                            float duration = (dataSize * 1000) / diviser;
+                            wavDurations.Add((int)Math.Ceiling(duration));
+                            
                             //Get Loop Points from Tags
                             int LoopStart_Sample = searchTag("LoopStart", wav);
                             int Total_Samples = searchTag("LoopEnd", wav);
@@ -101,6 +109,29 @@ namespace MultiEncoder
                 {
                     Write(finalSCD, entry_offsets[i], 32, (int)headers_offset + i * 0x04);
                     Array.Copy(SCDs[i], 0, finalSCD, entry_offsets[i], SCDs[i].Length);
+                }
+                //update OGG durations
+                if (Read(oldSCD, 32, 0x08) <= 3)
+                {
+                    uint table1_count = Read(oldSCD, 16, (int)tables_offset);
+                    uint table2_count = Read(oldSCD, 16, (int)tables_offset + 0x02);
+                    uint table2_offset = Read(oldSCD, 32, (int)tables_offset + 0x08);
+                    int table1_offset = (int)tables_offset + 0x20;
+                    for (int i = 0; i < table1_count; i++)
+                    {
+                        uint offset = Read(oldSCD, 32, table1_offset + i * 4);
+                        uint unk = Read(oldSCD, 16, (int)offset);
+                        if (unk != 256)
+                        {
+                            uint scdIndex = Read(oldSCD, 16, (int)offset + 0x10);
+                            uint wavIndex = Read(oldSCD, 16, (int)offset + 0x12);
+                            
+                            uint durationOffset = Read(oldSCD, 32, (int)(table2_offset + scdIndex * 4));
+                            int durationMSoffset = (int)durationOffset + 0x50;
+                            Console.WriteLine(scdIndex + " plays " + (wavIndex + 1) + ".wav [" + Read(oldSCD, 32, (int)durationMSoffset) + "ms] will be updated to [" + wavDurations[(int)wavIndex] + "ms]");
+                            Write(finalSCD, wavDurations[(int)wavIndex], 32, durationMSoffset);
+                        }
+                    }
                 }
                 //Write File Size            
                 Write(finalSCD, file_size, 32, 0x10);

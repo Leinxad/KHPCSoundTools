@@ -4,11 +4,14 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Collections.Generic;
+using System.Text.RegularExpressions;
+using System.Globalization;
 namespace MultiEncoder
 {
     class Program
     {
         static readonly string TOOLS_PATH = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), "tools");
+        static readonly string INPUT_PATH = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), "input");
 
         static void Main(string[] args)
         {
@@ -25,6 +28,14 @@ namespace MultiEncoder
             {
                 Console.WriteLine($"Please put adpcmencode3.exe in the tools folder: {TOOLS_PATH}/adpcmencode3");
                 return;
+            }
+            if (args.Length == 0)
+            {
+                args = new string[2];
+                Console.WriteLine("Please drag your SCD file here: ");
+                args[0] = Console.ReadLine().Replace("\"", "");
+                Console.WriteLine("Please type the quality level you want [1-9]: ");
+                args[1] = Console.ReadLine();
             }
             if (args.Length > 0)
             {
@@ -48,6 +59,11 @@ namespace MultiEncoder
                 int[] entry_offsets = new int[headers_entries + 1];
                 entry_offsets[0] = file_size;
                 uint codec = getCodec(headers_entries, headers_offset, oldSCD);
+                
+                List<int> wavDurations = new List<int>();
+                string[] wavList = Directory.GetFiles(INPUT_PATH);
+                Array.Sort<string>(wavList, CompareByNumericName);
+                
                 for (int i = 0; i < headers_entries; i++)
                 {
                     entry_begin = Read(oldSCD, 32, (int)headers_offset + i * 0x04);
@@ -65,21 +81,29 @@ namespace MultiEncoder
                     //Check if entry is dummy
                     if (Read(entry, 32, 0x0c) != 0xFFFFFFFF)
                     {
+                        string wavpath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), (i + 1 - dummy_entries) + ".wav");
+                        if (i - dummy_entries < wavList.Length)
+                        {
+                            wavpath = wavList[i - dummy_entries];
+                        }
+                        byte[] wav = File.ReadAllBytes(wavpath);
                         if (codec == 0x6)
                         {
-                            string wavpath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), (i + 1 - dummy_entries) + ".wav");
-                            byte[] wav = File.ReadAllBytes(wavpath);
+                            //Get wav duration
+                            uint diviser = Read(wav, 32, 0x1c);
+                            uint dataSize = Read(wav, 32, 0x28);
+                            float duration = (dataSize * 1000) / diviser;
+                            wavDurations.Add((int)Math.Ceiling(duration));
+                            
                             //Get Loop Points from Tags
                             int LoopStart_Sample = searchTag("LoopStart", wav);
                             int Total_Samples = searchTag("LoopEnd", wav);
                             WavtoOGG(wavpath, LoopStart_Sample, Total_Samples, Quality);
-                            string oggPath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), $"{Path.GetFileNameWithoutExtension(wavpath)}.ogg");
+                            string oggPath = Path.Combine((i - dummy_entries < wavList.Length ? INPUT_PATH : Path.GetDirectoryName(AppContext.BaseDirectory)), $"{Path.GetFileNameWithoutExtension(wavpath)}.ogg");
                             newEntry = OGGtoSCD(wav, entry, oggPath, LoopStart_Sample, Total_Samples);
                         }
                         else
                         {
-                            string wavpath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory), (i + 1 - dummy_entries) + ".wav");
-                            byte[] wav = File.ReadAllBytes(wavpath);
                             WavtoMSADPCM(wavpath);
                             string msadpcmPath = Path.Combine(Path.GetDirectoryName(AppContext.BaseDirectory),"adpcm" + $"{Path.GetFileNameWithoutExtension(wavpath)}.wav");
                             newEntry = MSADPCMtoSCD(wav, entry, msadpcmPath);
@@ -101,6 +125,29 @@ namespace MultiEncoder
                 {
                     Write(finalSCD, entry_offsets[i], 32, (int)headers_offset + i * 0x04);
                     Array.Copy(SCDs[i], 0, finalSCD, entry_offsets[i], SCDs[i].Length);
+                }
+                //update OGG durations
+                if (Read(oldSCD, 32, 0x08) <= 3)
+                {
+                    uint table1_count = Read(oldSCD, 16, (int)tables_offset);
+                    uint table2_count = Read(oldSCD, 16, (int)tables_offset + 0x02);
+                    uint table2_offset = Read(oldSCD, 32, (int)tables_offset + 0x08);
+                    int table1_offset = (int)tables_offset + 0x20;
+                    for (int i = 0; i < table1_count; i++)
+                    {
+                        uint offset = Read(oldSCD, 32, table1_offset + i * 4);
+                        uint unk = Read(oldSCD, 16, (int)offset);
+                        if (unk != 256)
+                        {
+                            uint scdIndex = Read(oldSCD, 16, (int)offset + 0x10);
+                            uint wavIndex = Read(oldSCD, 16, (int)offset + 0x12);
+                            
+                            uint durationOffset = Read(oldSCD, 32, (int)(table2_offset + scdIndex * 4));
+                            int durationMSoffset = (int)durationOffset + 0x50;
+                            Console.WriteLine(scdIndex + " plays " + (wavIndex + 1) + ".wav [" + Read(oldSCD, 32, (int)durationMSoffset) + "ms] will be updated to [" + wavDurations[(int)wavIndex] + "ms]");
+                            Write(finalSCD, wavDurations[(int)wavIndex], 32, durationMSoffset);
+                        }
+                    }
                 }
                 //Write File Size            
                 Write(finalSCD, file_size, 32, 0x10);
@@ -439,6 +486,15 @@ namespace MultiEncoder
                 string value = System.Text.Encoding.ASCII.GetString(number);
                 int tagData = Convert.ToInt32(value);
                 return tagData;
+            }
+
+            static int CompareByNumericName(string firstFile, string secondFile)
+            {
+                string file1 = Regex.Match(firstFile, @"\[[0-9]+\]").Value;
+                string file2 = Regex.Match(secondFile, @"\[[0-9]+\]").Value;
+                int firstFileNumericName = int.Parse(Regex.Match(file1, @"\d+").Value, NumberFormatInfo.InvariantInfo);
+                int secondFileNumericName = int.Parse(Regex.Match(file2, @"\d+").Value, NumberFormatInfo.InvariantInfo);
+                return firstFileNumericName.CompareTo(secondFileNumericName);
             }
         }
     }
